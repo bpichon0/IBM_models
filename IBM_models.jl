@@ -194,7 +194,7 @@ function Plot_dynamics(model, d)
 
     if model == "Guichard" || model == "guichard"
 
-        plot!(d[:, 2], label="Disturbed", color="#6D6D6D", linewidth=2)
+        plot(d[:, 2], label="Disturbed", color="#6D6D6D", linewidth=2)
         plot!(d[:, 3], label="Empty", color="#88BAC1", linewidth=2)
         plot!(d[:, 4], label="Mussel", color="#E89090", linewidth=2)
         ylims!((0.0, 1))
@@ -223,15 +223,15 @@ function Plot_landscape(model, landscape, ; keep_fertile=true)
         heatmap(landscape, color=["#6D6D6D", "#88BAC1", "#E89090"], axis=([], false), legend=false)
     elseif model == "Eby" || model == "eby" || model == "eby_feedback"
         colGRAD = cgrad([colorant"white", colorant"black"])
-        heatmap(landscape, yflip=true, fill=true, c=colGRAD)
+        heatmap(landscape, yflip=true, fill=true, c=colGRAD, legend=false)
     else
         if keep_fertile
             colGRAD = cgrad([colorant"white", colorant"gray", colorant"black"])
-            heatmap(landscape, yflip=true, fill=true, c=colGRAD)
+            heatmap(landscape, yflip=true, fill=true, c=colGRAD, legend=false)
         else
             landscape[findall((landscape .== 0))] .= -1
             colGRAD = cgrad([colorant"white", colorant"black"])
-            heatmap(landscape, yflip=true, fill=true, c=colGRAD)
+            heatmap(landscape, yflip=true, fill=true, c=colGRAD, legend=false)
         end
     end
 end

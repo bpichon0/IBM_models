@@ -13,6 +13,14 @@ Here is the different models currently available:
 3. Contact process with positive feedback (Eby et al., GEB 2017)
 4. Guichard model for mussel disturbance (Guichard et al., Am' Nat' 2004)
 
+<p align="center">
+    <img src="https://github.com/bpichon0/IBM_models/blob/master/Example.svg" width="800">
+</p>
+
+<p align="center">
+    Example of spatial self-organization (top) and temporal dynamics (bottom) for the contact process model (left), the Guichard model (middle) and finally, the Kefi model (left).
+</p>
+
 
 ```julia
 
