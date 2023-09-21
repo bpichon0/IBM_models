@@ -5,7 +5,7 @@ using StatsBase, RCall, Plots, StatsPlots, Random, LinearAlgebra, Distributions
 
 function Get_parameters(model)
 
-    if model == "Kefi" || model == "kefi"
+    if model == "Kefi" || model = eee = "kefi"
         param = Param_Kefi()
 
     elseif model == "Guichard" || model == "guichard"
@@ -13,6 +13,9 @@ function Get_parameters(model)
 
     elseif model == "Eby" || model == "eby" || model == "eby_feedback"
         param = Param_Eby()
+
+    elseif model == "forest_gap" || model == "gap" || model == "tree"
+        param = Param_Gap()
 
     else
         param = Param_Schneider()
@@ -33,6 +36,22 @@ function Param_Guichard()
         "δ" => δ,
         "α2" => α2,
         "α0" => α0,
+        "tau_leap" => tau_leap])
+end
+
+
+
+function Param_Gap()
+
+    δ = 0.3
+    d = 0.2
+    α = 0.2
+    tau_leap = 0.5
+
+    return Dict([
+        "δ" => δ,
+        "d" => d,
+        "α" => α,
         "tau_leap" => tau_leap])
 end
 
@@ -117,7 +136,7 @@ function Get_initial_lattice(model, ; size_landscape=100)
 
     if model == "Kefi" || model == "kefi" || model == "Schneider" || model == "schneider"
         ini_land = reshape(sample([-1, 0, 1], Weights([0.1, 0.1, 0.8]), size_landscape * size_landscape), size_landscape, size_landscape)
-    elseif model == "Eby" || model == "eby" || model == "eby_feedback"
+    elseif model == "Eby" || model == "eby" || model == "eby_feedback" || model == "forest_gap" || model == "gap" || model == "tree"
         ini_land = reshape(sample([1, 0], Weights([0.8, 0.2]), size_landscape * size_landscape), size_landscape, size_landscape)
     else
         ini_land = reshape(sample([0, 1, 2], Weights([0.4, 0.4, 0.2]), size_landscape * size_landscape), size_landscape, size_landscape)
@@ -156,6 +175,11 @@ function Run_model(; model, param, landscape, tmax=1000,
         dyn, land = IBM_Eby_drylands(landscape=copy(landscape), param=copy(param), time_t=tmax,
             keep_landscape=keep_landscape, n_snapshot=n_snapshot, burning_phase=burning_phase,
             n_time_bw_snap=n_time_bw_snap, intensity_feedback=intensity_feedback)
+
+    elseif model == "forest_gap" || model == "gap" || model == "tree"
+
+        dyn, land = IBM_Forest_gap(landscape=copy(landscape), param=copy(param), time_t=tmax,
+            keep_landscape=keep_landscape, n_snapshot=n_snapshot, burning_phase=burning_phase, n_time_bw_snap=n_time_bw_snap)
 
     else
         dyn, land = IBM_Schneider_drylands(landscape=copy(landscape), param=copy(param), time_t=tmax,
@@ -199,7 +223,7 @@ function Plot_dynamics(model, d)
         plot!(d[:, 4], label="Mussel", color="#E89090", linewidth=2)
         ylims!((0.0, 1))
 
-    elseif model == "Eby" || model == "eby" || model == "eby_feedback"
+    elseif model == "Eby" || model == "eby" || model == "eby_feedback" || model == "forest_gap" || model == "gap" || model == "tree"
 
         plot(d[:, 1], seriescolor=:lightgreen, label="vegetation")
         ylims!((0.0, 1))
@@ -728,5 +752,87 @@ function IBM_Guichard_mussel(; landscape, param, time_t, keep_landscape=false, n
 
 end
 
+
+
+function IBM_Forest_gap(; landscape, param, time_t, keep_landscape=false, n_snapshot=25, burning_phase=1000, n_time_bw_snap=50)
+
+    if keep_landscape
+        all_landscape_snap = zeros(size(landscape)[1], size(landscape)[1], n_snapshot)
+        nsave = 1
+    end
+    δ = param["δ"]
+    d = param["d"]
+    α = param["α"]
+    tau_leap = param["tau_leap"]
+
+
+    rules_change = transpose([0 1; 1 0])
+
+    nb_cell = size(landscape)[1]
+
+    #Allocating 
+    Rate_landscape = zeros(nb_cell, nb_cell, 2)
+
+    #If we keep all snapshots we determine the minimum time for having n_snapshot after a burning_phase and with n_time_bw_snap time step between each
+
+    if keep_landscape
+        time_t = burning_phase + n_time_bw_snap * n_snapshot
+    end
+    d2 = zeros(time_t, 3) #Allocating
+
+
+
+    for t in 1:time_t
+
+
+        @rput landscape
+        R"neigh_0= simecol::neighbors(x =landscape,state = 0, wdist = matrix( c(0, 1, 0,1, 0, 1, 0, 1, 0), nrow = 3),bounds = 1)"
+        @rget neigh_0
+
+
+
+        Rate_landscape[:, :, 1] .= α .* (landscape .== 0)
+
+        Rate_landscape[:, :, 2] .= @. (d + δ * neigh_0 / 4)
+        Rate_landscape[:, :, 2] .= Rate_landscape[:, :, 2] .* (landscape .== 1)
+
+        Rate_landscape[findall(Rate_landscape .< 0)] .= 0 #to avoid problems with propensity
+
+        #calculate propensity
+
+        propensity = [sum(Rate_landscape[:, :, k]) for k in 1:size(Rate_landscape)[3]]
+
+        nb_events = map(x -> rand(Poisson(x)), propensity * tau_leap)
+
+        for event in 1:length(nb_events) #for each type of events
+            patches = findall(landscape .== rules_change[event, 1])
+
+            if nb_events[event] != 0 && length(patches) > nb_events[event]
+                landscape[wsample(patches, Rate_landscape[patches, event], nb_events[event])] .= rules_change[event, 2]
+            end
+        end
+
+        rho_0 = length(findall((landscape .== 0))) / length(landscape) #fraction empty
+        rho_1 = length(findall((landscape .== 1))) / length(landscape) #fraction forest
+
+        @views d2[t, :] = [t rho_0 rho_1]
+        Rate_landscape = zeros(nb_cell, nb_cell, 2)
+
+        #keeping the landscapes to average the summary statistics
+        if keep_landscape && t > burning_phase && t % ((time_t - burning_phase) / n_snapshot) == 0
+            all_landscape_snap[:, :, nsave] = landscape
+            nsave += 1
+        end
+
+    end
+
+    if !keep_landscape
+        all_landscape_snap = landscape
+    end
+
+    return d2, all_landscape_snap
+
+
+end
 
 #endregion
