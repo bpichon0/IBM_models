@@ -10,7 +10,7 @@ Here is the different models currently available:
 
 1. Kefi model for vegetation dynamics in drylands (Kefi et al., TPB 2007)
 2. Schneider extension of the Kefi model (Schneider et al., TE 2016)
-3. Contact process with positive feedback (Eby et al., GEB 2017)
+3. Contact process with positive feedback (modified from Eby et al., GEB 2017)
 4. Guichard model for mussel disturbance (Guichard et al., Am' Nat' 2004)
 5. Forest-gap model (Kubo et al., J. Theor. Biol. 1996)
 

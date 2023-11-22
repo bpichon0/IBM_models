@@ -1,3 +1,5 @@
+Pkg.add(["StatsBase", "RCall", "Plots", "StatsPlots", "Random", "LinearAlgebra", "Distributions"])
+
 using StatsBase, RCall, Plots, StatsPlots, Random, LinearAlgebra, Distributions
 
 
@@ -5,7 +7,7 @@ using StatsBase, RCall, Plots, StatsPlots, Random, LinearAlgebra, Distributions
 
 function Get_parameters(model)
 
-    if model == "Kefi" || model = eee = "kefi"
+    if model == "Kefi" || model == "kefi"
         param = Param_Kefi()
 
     elseif model == "Guichard" || model == "guichard"
